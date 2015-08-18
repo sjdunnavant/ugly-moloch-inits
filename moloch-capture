@@ -1,0 +1,95 @@
+#!/bin/sh
+#
+# moloch-capture 	moloch capture
+#
+# chkconfig:	345 70 60
+# description:	moloch capture apparatus
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+RETVAL=0
+TDIR=/data/moloch
+
+exec="${TDIR}/bin/moloch-capture -c ${TDIR}/etc/config.ini > ${TDIR}/logs/capture.log 2>&1"
+prog="moloch-capture"
+
+LOCKFILE="/var/lock/subsys/${prog}"
+PIDFILE="/var/run/${prog}.pid"
+
+start() {
+    echo -n "Starting ${prog} : "
+    #daemon ${exe} # Not working ...
+    if [ -s ${PIDFILE} ]; then
+       RETVAL=1
+       echo -n "Already running !" && warning
+       echo
+    else
+      cd ${TDIR}/bin
+      rm -f ${TDIR}/logs/capture.log.old
+      mv ${TDIR}/logs/capture.log ${TDIR}/logs/capture.log.old
+       
+      nohup $exec >/dev/null 2>&1 &
+      RETVAL=$?
+      PID=$!
+      [ $RETVAL -eq 0 ] && touch ${LOCKFILE} && success || failure
+      echo
+      echo $PID > ${PIDFILE}
+    fi
+}
+
+stop() {
+    echo -n $"Stopping ${prog}"
+    killproc moloch-capture -TERM
+    RETVAL=$?
+    echo
+    [ $RETVAL -eq 0 ] && rm -f $LOCKFILE %% rm -f $PIDFILE
+    return $RETVAL
+}
+
+
+
+
+restart() {
+    stop
+    start
+}
+
+reload() {
+    restart
+}
+
+force_reload() {
+    restart
+}
+
+rh_status() {
+    status $prog
+}
+
+rh_status_q() {
+    rh_status >/dev/null 2>&1
+}
+
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart)
+        stop
+	start
+        ;;
+    status)
+        rh_status
+        ;;
+    *)
+	echo "Usage: $prog {start|stop|status|restart}"
+	exit 1
+	;;
+esac
+exit $RETVAL
+
